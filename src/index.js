@@ -1,64 +1,31 @@
-const http = require('http');
-const { Client, GatewayIntentBits, Partials } = require('discord.js');
-const config = require('./config');
-const logger = require('./utils/logger');
-const { registerCommand } = require('./handlers/commandHandler');
+require('dotenv').config();
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.DirectMessages,
-    GatewayIntentBits.DirectMessageTyping,
-  ],
-  partials: [
-    Partials.Channel,
-    Partials.Message,
-    Partials.User,
-  ],
-});
+const config = {
+  token: process.env.TOKEN,
+  clientId: process.env.CLIENT_ID,
+  guildId: process.env.GUILD_ID || null,
+  supabaseUrl: process.env.SUPABASE_URL,
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+  adminId: process.env.ADMIN_ID,
+  webhookUrl: process.env.WEBHOOK_URL || null,
 
-const eventFiles = [
-  require('./events/ready'),
-  require('./events/interactionCreate'),
-  require('./events/messageCreate'),
-];
+  coins: {
+    perMessage: 2,
+    anonymousCost: 40,
+    whisperCost: 10,
+    startingBalance: 100,
+  },
 
-for (const event of eventFiles) {
-  if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args, client));
-  } else {
-    client.on(event.name, (...args) => event.execute(...args, client));
+  cooldown: {
+    messageCooldownMs: 1000,
+  },
+};
+
+const requiredKeys = ['token', 'clientId', 'supabaseUrl', 'supabaseAnonKey', 'adminId'];
+for (const key of requiredKeys) {
+  if (!config[key]) {
+    throw new Error(`Missing required config: ${key}. Check your .env file.`);
   }
-  logger.info(`Registered event: ${event.name}`);
 }
 
-const adminCreditCommand = require('./commands/admin_credit');
-registerCommand(adminCreditCommand.name, adminCreditCommand);
-
-const panelCommand = require('./commands/panel');
-registerCommand(panelCommand.name, panelCommand);
-
-process.on('unhandledRejection', (error) => {
-  logger.error('Unhandled promise rejection', error);
-});
-
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught exception', error);
-});
-
-const port = process.env.PORT || 3000;
-http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Crown Whisper Bot is running.');
-}).listen(port, () => {
-  logger.info(`Health server listening on port ${port}`);
-});
-
-client.login(config.token).then(() => {
-  logger.info('Bot logged in successfully');
-}).catch((error) => {
-  logger.error('Failed to login', error);
-  process.exit(1);
-});
+module.exports = config;
